@@ -1,7 +1,6 @@
 import re
 
 def read_tables(table_file):
-    l = []
     with open(table_file, 'r') as f:
          l = (f.read().split('\n'))
     return l

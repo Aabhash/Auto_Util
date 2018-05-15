@@ -1,590 +1,133 @@
-SELECT /*+ ORDERED */
-         TO_CHAR (SYSDATE, 'DD-MM-YYYY') link_current_date,
-         tdata.match_date,
-         tdata.receive_dt,
-         tdata.receive_date,
-         tdata.loc_type,
-         tdata.location,
-         tdata.location_name,
-         tdata.order_no,
-         tdata.supplier,
-         tdata.sup_name,
-         tdata.sup_type,
-         tdata.doc_id,
-         tdata.invoice_no,
-         tdata.doc_date,
-         tdata.due_date,
-         tdata.invoice_amount,
-         tdata.invoice_tax_amount,
-         tdata.invoice_net_amount,
-         tdata.order_amount,
-         tdata.order_vat_amount,
-         tdata.order_amount_incl_vat
-    FROM (SELECT TO_CHAR (invc.match_date, 'DD-MON-YYYY') match_date,
-                 TRUNC (tshp.receive_date) receive_dt,
-                 TO_CHAR (tshp.receive_date, 'DD-MON-YYYY') receive_date,
-                 invc.loc_type,
-                 invc.location,
-                 (CASE
-                     WHEN invc.loc_type = 'S'
-                     THEN
-                        (SELECT st.store_name
-                           FROM STORE st
-                          WHERE st.store = invc.location)
-                     WHEN invc.loc_type = 'W'
-                     THEN
-                        (SELECT w.wh_name
-                           FROM WH w
-                          WHERE w.wh = invc.location)
-                     ELSE
-                        ''
-                  END)
-                    location_name,
-                 tshp.gor_no,
-                 tshp.order_no,
-                 tshp.supplier,
-                 tshp.sup_name,
-                 tshp.sup_type,
-                 invc.doc_id,
-                 invc.invoice_no,
-                 TO_CHAR (invc.doc_date, 'DD-MON-YYYY') doc_date,
-                 TO_CHAR (invc.due_date, 'DD-MON-YYYY') due_date,
-                 ROUND (invc.invoice_amount, 2) invoice_amount,
-                 ROUND (invc.invoice_tax_amount, 2) invoice_tax_amount,
-                 ROUND (invc.invoice_net_amount, 2) invoice_net_amount,
-                 ROUND (tshp.order_amount, 2) order_amount,
-                 ROUND (tshp.vat_amount, 2) order_vat_amount,
-                 ROUND (tshp.order_amount + NVL (tshp.vat_amount, 0), 2)
-                    order_amount_incl_vat                      -- Makro amount
-            FROM (  SELECT tinv.doc_id,
-                           tinv.invoice_no,
-                           tinv.match_date,
-                           tinv.loc_type,
-                           tinv.location,
-                           tinv.doc_date,
-                           tinv.due_date,
-                           SUM (tinv.invoice_amount) invoice_amount,
-                           SUM (tinv.invoice_tax_amount) invoice_tax_amount,
-                           SUM (tinv.invoice_amount + tinv.invoice_tax_amount)
-                              invoice_net_amount
-                      FROM (                   -- Get auto approve for invoice
-                            SELECT   dh.doc_id,
-                                     dh.ext_doc_id invoice_no,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date))
-                                        match_date,
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0) invoice_amount,
-                                     NVL (SUM (dt.tax_amount), 0)
-                                        invoice_tax_amount
-                                FROM IM_DOC_HEAD dh, IM_DOC_TAX dt
-                               WHERE     dh.STATUS IN ('MTCH', 'POSTED')
-                                     AND dh.TYPE = 'MRCHI'
-                                     AND dh.deal_id IS NULL    -- exclude Deal
-                                     AND NVL (dh.rtv_ind, 'N') = 'N' -- exclude RTV
-                                     AND dh.ref_doc IS NULL -- exclude new invoice from DA action
-                                     AND NOT EXISTS
-                                            (SELECT 'x'
-                                               FROM IM_COST_DISCREPANCY_HIST cdcpc
-                                              WHERE cdcpc.doc_id = dh.doc_id) -- exclude DA
-                                     AND NOT EXISTS
-                                            (SELECT 'x'
-                                               FROM IM_QTY_DISCREPANCY_HIST qdcpc
-                                              WHERE qdcpc.doc_id = dh.doc_id) -- exclude DA
-                                     AND dh.doc_id = dt.doc_id(+)  -- Join Tax
-                                     AND NVL (TRUNC (dh.match_date),
-                                              TRUNC (dh.post_date)) BETWEEN :PM_APPROVE_DT_FROM
-                                                                        AND :PM_APPROVE_DT_TO
-                                     AND (   LEAST (:PM_LOCATION) IS NULL
-                                          OR dh.location IN (:PM_LOCATION))
-                            GROUP BY dh.doc_id,
-                                     dh.ext_doc_id,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date)),
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0)
-                            UNION ALL
-                              -- Get manual approve for invoice
-                              SELECT dh.doc_id,
-                                     dh.ext_doc_id invoice_no,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date))
-                                        match_date,
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0) invoice_amount,
-                                     NVL (SUM (dt.tax_amount), 0)
-                                        invoice_tax_amount
-                                FROM IM_DOC_HEAD dh, IM_DOC_TAX dt
-                               WHERE     dh.STATUS IN ('MTCH', 'POSTED')
-                                     AND dh.TYPE = 'MRCHI'
-                                     AND dh.deal_id IS NULL    -- exclude Deal
-                                     AND NVL (dh.rtv_ind, 'N') = 'N' -- exclude RTV
-                                     AND dh.ref_doc IS NULL -- exclude new invoice from DA action
-                                     AND (   EXISTS
-                                                (SELECT 'x'
-                                                   FROM IM_COST_DISCREPANCY_HIST cdcpc
-                                                  WHERE cdcpc.doc_id = dh.doc_id) -- include DA
-                                          OR EXISTS
-                                                (SELECT 'x'
-                                                   FROM IM_QTY_DISCREPANCY_HIST qdcpc
-                                                  WHERE qdcpc.doc_id = dh.doc_id)) -- include DA
-                                     AND dh.doc_id = dt.doc_id(+)  -- Join Tax
-                                     AND NVL (TRUNC (dh.match_date),
-                                              TRUNC (dh.post_date)) BETWEEN :PM_APPROVE_DT_FROM
-                                                                        AND :PM_APPROVE_DT_TO
-                                     AND (   LEAST (:PM_LOCATION) IS NULL
-                                          OR dh.location IN (:PM_LOCATION))
-                            GROUP BY dh.doc_id,
-                                     dh.ext_doc_id,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date)),
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0)
-                            UNION ALL
-                              -- Get invoices have been generated by Debit Advice
-                              SELECT dh.doc_id,
-                                     dh.ext_doc_id invoice_no,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date))
-                                        match_date,
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (SUM (dainv.total_cost), 0) invoice_amount,
-                                     NVL (SUM (tax.tax_amount), 0)
-                                        invoice_tax_amount
-                                FROM IM_DOC_HEAD dh,
-                                     IM_DOC_HEAD dainv,
-                                     (  SELECT dt.doc_id,
-                                               NVL (SUM (dt.tax_amount), 0)
-                                                  tax_amount
-                                          FROM IM_DOC_HEAD dh,
-                                               IM_DOC_HEAD dainv,
-                                               IM_DOC_TAX dt
-                                         WHERE     dh.STATUS IN ('MTCH', 'POSTED')
-                                               AND dh.TYPE = 'MRCHI'
-                                               AND dh.deal_id IS NULL -- exclude Deal
-                                               AND NVL (dh.rtv_ind, 'N') = 'N' -- exclude RTV
-                                               AND dainv.ref_doc IS NOT NULL -- include new invoice from DA action
-                                               AND dh.doc_id = dainv.ref_doc
-                                               AND dainv.doc_id = dt.doc_id(+) -- Join Tax
-                                               AND NVL (TRUNC (dh.match_date),
-                                                        TRUNC (dh.post_date)) BETWEEN :PM_APPROVE_DT_FROM
-                                                                                  AND :PM_APPROVE_DT_TO
-                                               AND (   LEAST (:PM_LOCATION) IS NULL
-                                                    OR dh.location IN (:PM_LOCATION))
-                                      GROUP BY dt.doc_id) tax
-                               WHERE     dh.STATUS IN ('MTCH', 'POSTED')
-                                     AND dh.TYPE = 'MRCHI'
-                                     AND dh.deal_id IS NULL    -- exclude Deal
-                                     AND NVL (dh.rtv_ind, 'N') = 'N' -- exclude RTV
-                                     AND dainv.ref_doc IS NOT NULL -- include new invoice from DA action
-                                     AND dh.doc_id = dainv.ref_doc
-                                     AND dainv.doc_id = tax.doc_id(+) -- Join Tax
-                                     AND NVL (TRUNC (dh.match_date),
-                                              TRUNC (dh.post_date)) BETWEEN :PM_APPROVE_DT_FROM
-                                                                        AND :PM_APPROVE_DT_TO
-                                     AND (   LEAST (:PM_LOCATION) IS NULL
-                                          OR dh.location IN (:PM_LOCATION))
-                            GROUP BY dh.doc_id,
-                                     dh.ext_doc_id,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date)),
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date
-                            UNION ALL
-                              -- Get auto approve for rtv deposit
-                              SELECT dh.doc_id,
-                                     dh.ext_doc_id invoice_no,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date))
-                                        match_date,
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0) invoice_amount,
-                                     NVL (SUM (dt.tax_amount), 0)
-                                        invoice_tax_amount
-                                FROM IM_DOC_HEAD dh, IM_DOC_TAX dt
-                               WHERE     dh.STATUS IN ('MTCH', 'POSTED') --AND dh.type = 'MRCHI'
-                                     AND dh.deal_id IS NULL    -- exclude Deal
-                                     AND NVL (dh.rtv_ind, 'N') = 'Y' -- include RTV
-                                     AND dh.ref_doc IS NULL -- exclude new invoice from DA action
-                                     AND dh.doc_id = dt.doc_id(+)  -- Join Tax
-                                     AND NOT EXISTS
-                                            (SELECT 'x'
-                                               FROM IM_COST_DISCREPANCY_HIST cdcpc
-                                              WHERE cdcpc.doc_id = dh.doc_id) -- exclude DA
-                                     AND NOT EXISTS
-                                            (SELECT 'x'
-                                               FROM IM_QTY_DISCREPANCY_HIST qdcpc
-                                              WHERE qdcpc.doc_id = dh.doc_id) -- exclude DA
-                                     AND NVL (TRUNC (dh.match_date),
-                                              TRUNC (dh.post_date)) BETWEEN :PM_APPROVE_DT_FROM
-                                                                        AND :PM_APPROVE_DT_TO
-                                     AND (   LEAST (:PM_LOCATION) IS NULL
-                                          OR dh.location IN (:PM_LOCATION))
-                                     AND EXISTS
-                                            (SELECT 1
-                                               FROM RTV_DETAIL rtvdl,
-                                                    ITEM_MASTER itm
-                                              WHERE     rtvdl.rtv_order_no =
-                                                           dh.order_no
-                                                    AND rtvdl.item = itm.item
-                                                    AND itm.deposit_item_type IN
-                                                           ('A', 'T'))
-                            GROUP BY dh.doc_id,
-                                     dh.ext_doc_id,
-                                     NVL (TRUNC (dh.match_date),
-                                          TRUNC (dh.post_date)),
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0)
-                            UNION ALL
-                              -- Get auto approve for invoice
-                              SELECT dh.doc_id,
-                                     dh.ext_doc_id invoice_no,
-                                     TRUNC (dh.approval_date) match_date,
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0) invoice_amount,
-                                     NVL (SUM (dt.tax_amount), 0)
-                                        invoice_tax_amount
-                                FROM IM_DOC_HEAD dh, IM_DOC_TAX dt
-                               WHERE     dh.STATUS IN ('MTCH', 'POSTED') --AND dh.type = 'MRCHI'
-                                     AND dh.deal_id IS NULL    -- exclude Deal
-                                     AND NVL (dh.rtv_ind, 'N') = 'Y' -- include RTV
-                                     AND dh.ref_doc IS NULL -- exclude new invoice from DA action
-                                     AND NOT EXISTS
-                                            (SELECT 'x'
-                                               FROM IM_COST_DISCREPANCY_HIST cdcpc
-                                              WHERE cdcpc.doc_id = dh.doc_id) -- exclude DA
-                                     AND NOT EXISTS
-                                            (SELECT 'x'
-                                               FROM IM_QTY_DISCREPANCY_HIST qdcpc
-                                              WHERE qdcpc.doc_id = dh.doc_id) -- exclude DA
-                                     AND dh.doc_id = dt.doc_id(+)  -- Join Tax
-                                     AND TRUNC (dh.approval_date) BETWEEN :PM_APPROVE_DT_FROM
-                                                                      AND :PM_APPROVE_DT_TO
-                                     AND (   LEAST (:PM_LOCATION) IS NULL
-                                          OR dh.location IN (:PM_LOCATION))
-                                     AND NOT EXISTS
-                                                (SELECT 1
-                                                   FROM RTV_DETAIL rtvdl,
-                                                        ITEM_MASTER itm
-                                                  WHERE     rtvdl.rtv_order_no =
-                                                               dh.order_no
-                                                        AND rtvdl.item = itm.item
-                                                        AND itm.deposit_item_type IN
-                                                               ('A', 'T'))
-                            GROUP BY dh.doc_id,
-                                     dh.ext_doc_id,
-                                     TRUNC (dh.approval_date),
-                                     dh.loc_type,
-                                     dh.location,
-                                     dh.doc_date,
-                                     dh.due_date,
-                                     NVL (dh.total_cost, 0)) tinv
-                  GROUP BY tinv.doc_id,
-                           tinv.invoice_no,
-                           tinv.match_date,
-                           tinv.loc_type,
-                           tinv.location,
-                           tinv.doc_date,
-                           tinv.due_date) invc       -- Get shipment and order
-                                              ,
-                 (  SELECT dh.doc_id,
-                           (SELECT g.makro_gor_key
-                              FROM MAKRO_M_GOR g
-                             WHERE     g.rms_transaction_key = dh.order_no
-                                   AND ROWNUM = 1)
-                              gor_no,
-                           dh.order_no,
-                           shp.receive_date,
-                           dh.loc_type,
-                           dh.location,
-                           s.supplier_parent supplier            --oh.supplier
-                                                     ,
-                           s.sup_name,
-                           (SELECT REPLACE (st.description,
-                                            '- Supplier Type',
-                                            '')
-                              FROM SUP_TRAITS st, SUP_TRAITS_MATRIX stm
-                             WHERE     st.sup_trait = stm.sup_trait
-                                   AND stm.supplier = s.supplier
-                                   AND st.description LIKE '%Supplier Type%'
-                                   AND ROWNUM = 1)
-                              sup_type,
-                           SUM (ROUND (ol.qty_received * ol.unit_cost, 4))
-                              order_amount,
-                           /*CPWI*/
-                           (SELECT t_tax
-                              FROM (  SELECT tran_id, SUM (TOTAL_TAX) AS t_tax
-                                        FROM ORDHEAD OH1
-                                             INNER JOIN ORDLOC OL
-                                                ON (OH1.ORDER_NO = OL.ORDER_NO)
-                                             INNER JOIN
-                                             (  SELECT TRAN_ID,
-                                                       ITEM,
-                                                       TOTAL_TAX,
-                                                       (LISTAGG (
-                                                           TAX_TYPE,
-                                                           ', ')
-                                                        WITHIN GROUP (ORDER BY
-                                                                         TRAN_ID,
-                                                                         ITEM))
-                                                          TAX_TYPE,
-                                                       (LISTAGG (
-                                                           TAX_CALC_NAME,
-                                                           ', ')
-                                                        WITHIN GROUP (ORDER BY
-                                                                         TRAN_ID,
-                                                                         ITEM))
-                                                          AS TAX_NAMES,
-                                                       (LISTAGG (
-                                                           TAX_RATE,
-                                                           ', ')
-                                                        WITHIN GROUP (ORDER BY
-                                                                         TRAN_ID,
-                                                                         ITEM))
-                                                          AS TAX_RATE
-                                                  FROM (SELECT PTTH.TRAN_ID,
-                                                               PTTH.ITEM,
-                                                               PTTH.TOTAL_TAX,
-                                                               PTTD.TAX_TYPE,
-                                                               PTTD.TAX_CALC_NAME,
-                                                               PTTD.TAX_RATE
-                                                          FROM CL_PO_TRAN_TAX_HEADER PTTH,
-                                                               CL_PO_TRAN_TAX_DETAIL PTTD
-                                                         WHERE     (1 = 1)
-                                                               AND PTTH.TRAN_ID =
-                                                                      PTTD.TRAN_ID
-                                                               AND PTTH.ITEM =
-                                                                      PTTD.ITEM
-                                                               AND PTTH.TRAN_TYPE =
-                                                                      PTTD.TRAN_TYPE) A
-                                              GROUP BY TRAN_ID, ITEM, TOTAL_TAX) tcpo
-                                                ON (    tcpo.tran_id = oh1.order_no
-                                                    AND tcpo.ITEM = OL.ITEM)
-                                       WHERE (1 = 1) AND tcpo.tax_names IS NOT NULL
-                                    GROUP BY tran_id) order_tax
-                             WHERE order_tax.tran_id = dh.order_no)
-                              vat_amount
-                      FROM IM_DOC_HEAD dh,
-                           ORDHEAD oh,
-                           SUPS s,
-                           (SELECT DISTINCT l.order_no,
-                                            l.item,
-                                            l.UNIT_COST unit_cost,
-                                            l.qty_received
-                              FROM ORDLOC l) ol,
-                           (SELECT s.order_no,
-                                   s.shipment,
-                                   s.receive_date,
-                                   s.to_loc_type,
-                                   st.loc to_loc,
-                                   st.vat_region
-                              FROM SHIPMENT s,
-                                   (SELECT 'S' loc_type,
-                                           st.store loc_join,
-                                           st.store loc,
-                                           st.vat_region vat_region
-                                      FROM STORE st
-                                    UNION ALL
-                                    SELECT DISTINCT 'W' loc_type,
-                                                    w.wh loc_join,
-                                                    w.physical_wh loc,
-                                                    w.vat_region vat_region
-                                      FROM WH w) st
-                             WHERE     s.to_loc_type = st.loc_type
-                                   AND s.to_loc = st.loc_join
-                                   AND TRUNC (s.receive_date) <=
-                                          :PM_TO_DLVRY_DATE) shp
-                     WHERE     dh.STATUS IN ('MTCH', 'POSTED')
-                           AND dh.TYPE = 'MRCHI'
-                           AND dh.order_no = oh.order_no
-                           AND oh.order_no = shp.order_no
-                           AND oh.supplier = s.supplier
-                           AND oh.order_no = ol.order_no
-                           AND dh.deal_id IS NULL              -- exclude Deal
-                           AND NVL (dh.rtv_ind, 'N') = 'N'      -- exclude RTV
-                           AND dh.match_date BETWEEN :PM_APPROVE_DT_FROM
-                                                 AND :PM_APPROVE_DT_TO
-                           AND (   LEAST (:PM_LOCATION) IS NULL
-                                OR dh.location IN (:PM_LOCATION))
-                           AND NOT EXISTS
-                                      (SELECT 1
-                                         FROM SUP_TRAITS st,
-                                              SUP_TRAITS_MATRIX stm
-                                        WHERE     st.sup_trait = stm.sup_trait
-                                              AND st.description LIKE '%Dummy'
-                                              AND stm.supplier = oh.supplier)
-                  GROUP BY dh.doc_id,
-                           dh.order_no,
-                           shp.receive_date,
-                           dh.loc_type,
-                           dh.location,
-                           s.supplier_parent,
-                           s.supplier,
-                           s.sup_name
-                  UNION ALL
-                    SELECT dh.doc_id,
-                           (SELECT g.makro_gor_key
-                              FROM MAKRO_M_GOR g
-                             WHERE     g.rms_transaction_key = rtv.rtv_order_no
-                                   AND ROWNUM = 1)
-                              gor_no,
-                           rtv.rtv_order_no order_no,
-                           rtv.completed_date receive_date,
-                           rtv.loc_type,
-                           rtv.loc location,
-                           s.supplier_parent supplier           --rtv.supplier
-                                                     ,
-                           s.sup_name,
-                           (SELECT REPLACE (st.description,
-                                            '- Supplier Type',
-                                            '')
-                              FROM SUP_TRAITS st, SUP_TRAITS_MATRIX stm
-                             WHERE     st.sup_trait = stm.sup_trait
-                                   AND stm.supplier = s.supplier
-                                   AND st.description LIKE '%Supplier Type%'
-                                   AND ROWNUM = 1)
-                              sup_type,
-                           SUM (
-                              ROUND (rtvdl.qty_returned * rtvdl.unit_cost * (-1),
-                                     4))
-                              order_amount,
-                           /*CPWI*/
-                           (SELECT t_tax
-                              FROM (  SELECT tran_id, SUM (TOTAL_TAX) AS t_tax
-                                        FROM RTV_HEAD RH
-                                             INNER JOIN ORDLOC OL
-                                                ON (RH.rtv_order_no = OL.ORDER_NO)
-                                             INNER JOIN
-                                             (  SELECT TRAN_ID,
-                                                       ITEM,
-                                                       TOTAL_TAX,
-                                                       (LISTAGG (
-                                                           TAX_TYPE,
-                                                           ', ')
-                                                        WITHIN GROUP (ORDER BY
-                                                                         TRAN_ID,
-                                                                         ITEM))
-                                                          TAX_TYPE,
-                                                       (LISTAGG (
-                                                           TAX_CALC_NAME,
-                                                           ', ')
-                                                        WITHIN GROUP (ORDER BY
-                                                                         TRAN_ID,
-                                                                         ITEM))
-                                                          AS TAX_NAMES,
-                                                       (LISTAGG (
-                                                           TAX_RATE,
-                                                           ', ')
-                                                        WITHIN GROUP (ORDER BY
-                                                                         TRAN_ID,
-                                                                         ITEM))
-                                                          AS TAX_RATE
-                                                  FROM (SELECT RTTH.TRAN_ID,
-                                                               RTTH.ITEM,
-                                                               RTTH.TOTAL_TAX,
-                                                               RTTD.TAX_TYPE,
-                                                               RTTD.TAX_CALC_NAME,
-                                                               RTTD.TAX_RATE
-                                                          FROM CL_RTV_TRAN_TAX_HEADER RTTH,
-                                                               CL_RTV_TRAN_TAX_DETAIL RTTD,
-                                                               RTV_HEAD RH
-                                                         WHERE     (1 = 1)
-                                                               AND RTTH.TRAN_ID =
-                                                                      RTTD.TRAN_ID
-                                                               AND RTTH.ITEM =
-                                                                      RTTD.ITEM
-                                                               AND RTTH.TRAN_TYPE =
-                                                                      RTTD.TRAN_TYPE
-                                                               AND RTTH.TRAN_ID =
-                                                                      RH.RTV_ORDER_NO) A
-                                              GROUP BY TRAN_ID, ITEM, TOTAL_TAX) tcrtv
-                                                ON (    tcrtv.tran_id =
-                                                           RH.rtv_order_no
-                                                    AND tcrtv.ITEM = OL.ITEM)
-                                       WHERE     (1 = 1)
-                                             AND tcrtv.tax_names IS NOT NULL
-                                    GROUP BY tran_id) ee
-                             WHERE ee.tran_id = rtv.rtv_order_no)
-                              vat_amount
-                      FROM IM_DOC_HEAD dh,
-                           RTV_DETAIL rtvdl,
-                           SUPS s,
-                           (SELECT r.rtv_order_no,
-                                   r.supplier,
-                                   r.completed_date,
-                                   st.loc_type,
-                                   st.loc loc,
-                                   st.vat_region
-                              FROM RTV_HEAD r,
-                                   (SELECT 'S' loc_type,
-                                           st.store loc_join,
-                                           st.store loc,
-                                           st.vat_region vat_region
-                                      FROM STORE st
-                                    UNION ALL
-                                    SELECT DISTINCT 'W' loc_type,
-                                                    w.wh loc_join,
-                                                    w.physical_wh loc,
-                                                    w.vat_region vat_region
-                                      FROM WH w) st
-                             WHERE     (CASE WHEN r.wh = -1 THEN 'S' ELSE 'W' END) =
-                                          st.loc_type
-                                   AND (CASE
-                                           WHEN r.wh = -1 THEN r.store
-                                           ELSE r.wh
-                                        END) = st.loc_join
-                                   AND TRUNC (r.completed_date) <=
-                                          :PM_TO_DLVRY_DATE) rtv
-                     WHERE     dh.STATUS IN ('MTCH', 'POSTED') --AND dh.type = 'MRCHI'
-                           AND dh.order_no = rtv.rtv_order_no
-                           AND rtv.rtv_order_no = rtvdl.rtv_order_no
-                           AND rtv.supplier = s.supplier
-                           AND dh.deal_id IS NULL              -- exclude Deal
-                           AND NVL (dh.rtv_ind, 'N') = 'Y'      -- include RTV
-                           AND dh.approval_date BETWEEN :PM_APPROVE_DT_FROM
-                                                    AND :PM_APPROVE_DT_TO
-                           AND (   LEAST (:PM_LOCATION) IS NULL
-                                OR dh.location IN (:PM_LOCATION))
-                           AND NOT EXISTS
-                                      (SELECT 1
-                                         FROM SUP_TRAITS st,
-                                              SUP_TRAITS_MATRIX stm
-                                        WHERE     st.sup_trait = stm.sup_trait
-                                              AND st.description LIKE '%Dummy'
-                                              AND stm.supplier = rtv.supplier)
-                  GROUP BY dh.doc_id,
-                           rtv.rtv_order_no,
-                           rtv.completed_date,
-                           rtv.loc_type,
-                           rtv.loc,
-                           s.supplier_parent,
-                           s.supplier,
-                           s.sup_name) tshp
-           WHERE invc.doc_id = tshp.doc_id) tdata
-ORDER BY tdata.location, tdata.receive_dt, tdata.gor_no
+SELECT  t.item,
+        t.item_desc,
+        t.store_name,
+        t.adjust_date,
+        t.employee_id,
+        t.comment_desc,
+        --t.gor_no,
+        t.store,
+        t.adjust_qty,
+        t.order_qty,
+        t.gor_qty,
+        t.ORDER_NO
+FROM
+        (SELECT i.item ,
+                i.item_desc
+                --    ,NVL(ish.item_desc, i.item_desc) item_desc
+                ,
+                TO_CHAR(s.store)
+                || ' '
+                || s.store_name store_name ,
+                TO_CHAR(a.tran_date, 'DD-MM-YYYY') adjust_date ,
+                b.employee_id ,
+                b.comment_desc
+                /*,NVL((
+                SELECT SUBSTR(gor, 5, 6)
+                FROM sim132.GOR_DSD_RTV
+                --  WHERE order_id = TO_CHAR(a.ref_no_1)
+                WHERE order_id = TO_CHAR(b.order_id)
+                ), (
+                SELECT SUBSTR(gor, 5, 6)
+                FROM sim132.GOR_DSD_RTV
+                WHERE order_id = TO_CHAR(a.ref_no_1)
+                )) gor_no */
+                ,
+                s.store ,
+                a.units adjust_qty ,
+                c.quantity_expected order_qty ,
+                c.quantity_received gor_qty ,
+                b.order_id ORDER_NO
+        FROM    tran_data@SIM_LINKRMSDB a ,
+                shipment@SIM_LINKRMSDB shp ,
+                SIM132.rk_shipments b ,
+                store@SIM_LINKRMSDB s ,
+                item_master@SIM_LINKRMSDB i ,
+                SIM132.RK_SHIPMENT_ITEM c
+                --    ,(
+                --        SELECT ish.item
+                --            ,ish.item_desc
+                --        FROM mv_item_shadow ish
+                --            ,user_attrib_bi b
+                --        WHERE ish.lang = b.lang
+                --            AND b.user_id = upper(:xdo_user_name)
+                --        ) ish
+        WHERE   a.tran_code        = 20
+            AND a.adj_code         = 'U'
+            AND TRUNC(a.tran_date) = :PM_DATE
+            AND b.order_id         = NVL(:PM_ORDER, b.order_id)
+            AND s.store           IN (:PM_LOC)
+            AND ( b.shipment_id    = shp.ext_ref_no_in
+             OR 'SIM.'
+                || b.shipment_id = shp.ASN )
+            AND shp.order_no     = ref_no_1
+            AND b.store_id       = a.location
+            AND s.store          = a.location
+            AND ( i.item         = a.item
+             OR i.item           = a.ref_pack_no )
+                --    AND i.item = ish.item(+)
+            AND b.shipment_id   = c.shipment_id
+            AND i.item          = c.item_id
+            AND LEAST(:PM_LOC) IS NOT NULL
+            AND :PM_DATE       IS NOT NULL
+        UNION
+        SELECT  i.item ,
+                i.item_desc
+                --    ,NVL(ish.item_desc, i.item_desc) item_desc
+                ,
+                TO_CHAR(s.store)
+                || ' '
+                || s.store_name store_name ,
+                TO_CHAR(a.tran_date, 'DD-MM-YYYY') adjust_date ,
+                b.employee_id ,
+                b.comment_desc
+                /*,NVL((
+                SELECT SUBSTR(gor, 5, 6)
+                FROM sim132.GOR_DSD_RTV
+                --  WHERE order_id = TO_CHAR(a.ref_no_1)
+                WHERE order_id = TO_CHAR(b.order_id)
+                ), (
+                SELECT SUBSTR(gor, 5, 6)
+                FROM sim132.GOR_DSD_RTV
+                WHERE order_id = TO_CHAR(a.ref_no_1)
+                )) gor_no*/
+                ,
+                s.store ,
+                a.units adjust_qty ,
+                c.quantity_expected order_qty ,
+                c.quantity_received gor_qty ,
+                b.order_id ORDER_NO
+        FROM    tran_data_history@SIM_LINKRMSDB a ,
+                shipment@SIM_LINKRMSDB shp ,
+                SIM132.rk_shipments b ,
+                store@SIM_LINKRMSDB s ,
+                item_master@SIM_LINKRMSDB i ,
+                SIM132.RK_SHIPMENT_ITEM c
+                --    ,(
+                --        SELECT ish.item
+                --            ,ish.item_desc
+                --        FROM mv_item_shadow ish
+                --            ,user_attrib_bi b
+                --        WHERE ish.lang = b.lang
+                --            AND b.user_id = upper(:xdo_user_name)
+                --        ) ish
+        WHERE   a.tran_code        = 20
+            AND a.adj_code         = 'U'
+            AND TRUNC(a.tran_date) = :PM_DATE
+            AND b.order_id         = NVL(:PM_ORDER, b.order_id)
+            AND s.store           IN (:PM_LOC)
+            AND ( b.shipment_id    = shp.ext_ref_no_in
+             OR 'SIM.'
+                || b.shipment_id = shp.ASN )
+            AND shp.order_no     = ref_no_1
+            AND b.store_id       = a.location
+            AND s.store          = a.location
+            AND ( i.item         = a.item
+             OR i.item           = a.ref_pack_no )
+                --    AND i.item = ish.item(+)
+            AND b.shipment_id   = c.shipment_id
+            AND i.item          = c.item_id
+            AND LEAST(:PM_LOC) IS NOT NULL
+            AND :PM_DATE       IS NOT NULL
+        ) t
+ORDER BY order_no ,
+        item;

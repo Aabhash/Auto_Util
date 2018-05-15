@@ -1,7 +1,15 @@
 from helper import *
+from tkinter import *
+
+class Window(Frame):
+
+    def __init__(self, master=None):
+        Frame.__init__(self, master)               
+        self.master = master
 
 def main(): 
-
+    root = Tk()
+    app = Window(root)
     print("Reading file paths")
 
     table_file = "tables.txt"
@@ -23,6 +31,7 @@ def main():
 
     print("Writing to file")
     write_to_file(output_file, tables_in_query)
+    root.mainloop()
         
 if __name__ == "__main__":
     main()
