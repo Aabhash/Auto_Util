@@ -1,0 +1,21 @@
+import re
+
+def read_tables(string_tables):
+    l = (string_tables.split('\n'))
+    return l
+
+def convert_to_dictionary(table_list):
+    d = {}
+    for i in range(len(table_list)):
+        d[table_list[i]] = i
+    return d
+
+def remove_whitespace(query):
+    return " ".join(query.split())
+
+def wordify_query(q):
+    return re.split('(\W+)', q)
+
+def get_tables_in_query(table_dict, words_in_query):
+    t_in_q = {word for word in words_in_query if word in table_dict}
+    return t_in_q

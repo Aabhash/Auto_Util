@@ -1,43 +1,49 @@
-from helper import *
+#from file_helper import *
+from gui_helper import *
 from tkinter import *
 
 class Window(Frame):
 
     def __init__(self, master=None):
-        Frame.__init__(self, master)               
+        Frame.__init__(self, master)   
+        self.text_tables = ""
+        self.text_query = ""
+        self.text_output = ""            
         self.master = master
         self.init_window()
 
     def init_window(self):    
         self.master.title("Table_Q")
         self.pack(fill=BOTH)
-        quitButton = Button(self, text="Find Tables",command=self.execute)
+        self.text_tables = Text(width=30)
+        self.text_query = Text(width=30)
+        self.text_output = Text(width=30)
+        self.text_tables.pack(side=LEFT, expand=1)
+        self.text_query.pack(side=LEFT, expand=1)
+        self.text_output.pack(side=LEFT, expand=1)
+        quitButton = Button(self, text="FIND",command=self.execute)
         quitButton.pack(side=BOTTOM)
-        text_tables = Text(width=30)
-        text_query = Text(width=30)
-        text_output = Text(width=30)
-        text_tables.pack(side=LEFT, expand=1)
-        text_query.pack(side=LEFT, expand=1)
-        text_output.pack(side=LEFT, expand=1)
         
     def execute(self):
+        self.text_output.delete('1.0',END)
         #print("Reading file paths")
-        table_file = "tables.txt"
-        query_file = 'query.txt'
-        output_file = 'output.txt'
+        #table_file = "tables.txt"
+        #query_file = 'query.txt'
+        #output_file = 'output.txt'
+        
         #print("Reading list of tables from file {0}".format(table_file))
-        table_list = read_tables(table_file)
+        table_list = read_tables(self.text_tables.get("1.0", END))
         table_dict = convert_to_dictionary(table_list)
         #print("Table List Obtained")
         #print("Reading query from file {0}".format(query_file))
-        query = read_query(query_file)
-        cleaned_query = remove_whitespace(query)
+        cleaned_query = remove_whitespace(self.text_query.get("1.0", END))
         words_in_query = wordify_query(cleaned_query)
         #print("Getting tables from query")
         tables_in_query = get_tables_in_query(table_dict, words_in_query)
         #print("Writing to file")
-        write_to_file(output_file, tables_in_query)
-        exit()
+        for i in tables_in_query:
+            self.text_output.insert(END, (str(i) + '\n'))
+        #exit()
 
 def main(): 
     root = Tk()
