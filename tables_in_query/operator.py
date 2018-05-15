@@ -10,10 +10,16 @@ class Window(Frame):
 
     def init_window(self):    
         self.master.title("Table_Q")
-        self.pack(fill=BOTH, expand=1)
+        self.pack(fill=BOTH)
         quitButton = Button(self, text="Find Tables",command=self.execute)
-        quitButton.place(x=0, y=0)
-
+        quitButton.pack(side=BOTTOM)
+        text_tables = Text(width=30)
+        text_query = Text(width=30)
+        text_output = Text(width=30)
+        text_tables.pack(side=LEFT, expand=1)
+        text_query.pack(side=LEFT, expand=1)
+        text_output.pack(side=LEFT, expand=1)
+        
     def execute(self):
         #print("Reading file paths")
         table_file = "tables.txt"
@@ -35,7 +41,10 @@ class Window(Frame):
 
 def main(): 
     root = Tk()
-    root.geometry("400x300")
+    w, h = 800, 650
+    ws, hs = root.winfo_screenwidth(), root.winfo_screenheight()
+    x, y = (ws/2) - (w/2), (hs/2) - (h/2)
+    root.geometry('%dx%d+%d+%d' % (w, h, x, y))
     app = Window(root)
     root.mainloop()
         
