@@ -1,4 +1,3 @@
-#from file_helper import *
 from gui_helper import *
 from tkinter import *
 
