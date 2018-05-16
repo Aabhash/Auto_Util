@@ -13,7 +13,7 @@ class Window(Frame):
         self.init_window()
 
     def init_window(self):    
-        self.master.title("Table_Q")
+        self.master.title("Parse Tables")
         self.pack(fill=BOTH)
         self.text_tables = Text(width=30)
         self.text_query = Text(width=30)
@@ -36,12 +36,12 @@ class Window(Frame):
         table_dict = convert_to_dictionary(table_list)
         #print("Table List Obtained")
         #print("Reading query from file {0}".format(query_file))
-        cleaned_query = remove_whitespace(self.text_query.get("1.0", END))
+        cleaned_query = clean(self.text_query.get("1.0", END))
         words_in_query = wordify_query(cleaned_query)
         #print("Getting tables from query")
-        tables_in_query = get_tables_in_query(table_dict, words_in_query)
+        tables_found = get_tables_in_query(table_dict, words_in_query)
         #print("Writing to file")
-        for i in tables_in_query:
+        for i in tables_found:
             self.text_output.insert(END, (str(i) + '\n'))
         #exit()
 
