@@ -1,6 +1,7 @@
 import re
 
 def read_tables(string_tables):
+    string_tables = string_tables.upper()
     l = (string_tables.split('\n'))
     return l
 
@@ -10,7 +11,8 @@ def convert_to_dictionary(table_list):
         d[table_list[i]] = i
     return d
 
-def remove_whitespace(query):
+def clean(query):
+    query = query.upper()
     return " ".join(query.split())
 
 def wordify_query(q):
