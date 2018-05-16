@@ -12,6 +12,10 @@ def convert_to_dictionary(table_list):
     return d
 
 def clean(query):
+    query_lines = query.splitlines()
+    query = ''
+    for line in query_lines:
+        query = query + re.sub('--.*', '', line) +' '
     query = query.upper()
     return " ".join(query.split())
 
