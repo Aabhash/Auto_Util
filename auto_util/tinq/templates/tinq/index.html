@@ -1,0 +1,41 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>TINQ</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <style>
+        .main {
+            float: left;
+            text-align: center;
+        }
+        .panel{
+
+        }
+        .txtarea{
+
+        }
+        textarea{
+            border: 2px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main">
+        <form>
+            <div class="panel">
+            <input type='button' class="btn btn-primary" name="btn_find" value="Find Tables in Query" />
+            </div>
+            <hr>
+            <div class="txtarea">
+            <textarea id='txt_tb' rows="40" cols="50"> </textarea>
+            <textarea id='txt_q' rows="40" cols="50"> </textarea>
+            <textarea id='txt_o' rows="40" cols="50"> </textarea>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>
