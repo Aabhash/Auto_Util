@@ -9,30 +9,73 @@
         .main {
             float: left;
             text-align: center;
-        }
-        .panel{
+            width: 100%;        
+            background:#ccc;
+            }
 
+        .main .form .panel {
+            background: inherit;
+            width: 29%;
+            height:800px;
+            position: relative;
+            float: left;
         }
-        .txtarea{
 
+        .main .form .panel input{            
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
         }
-        textarea{
-            border: 2px solid black;
+
+        .main .form .txtpanel {
+            float: left;
+            width: 70%;
+        }
+
+        .main .form .txtpanel .txtarea {
+            display: inline-block;
+            margin: 0 auto;
+            width: 33%;
+            padding: 15px;
+            background: #ccc;
+        }
+
+        .main .form .txtpanel .txtarea label {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 15px;
+            color: black;
+            display: block;
+            margin-right: auto;
+            margin-left: auto;
+            text-transform: uppercase;
+        }
+
+        .main .form .txtpanel .txtarea textarea {
+            float: left;
+            width: 100%;
         }
     </style>
 </head>
 
 <body>
     <div class="main">
-        <form>
-            <div class="panel">
-            <input type='button' class="btn btn-primary" name="btn_find" value="Find Tables in Query" />
+        <form class="form">
+            <div class="txtpanel">
+                <div class="txtarea">
+                    <label class="label">Tables</label>
+                    <textarea id='txt_tb' rows="40" cols="50"> </textarea>
+                </div>
+                <div class="txtarea">
+                    <label class="label">Query</label>
+                    <textarea id='txt_q' rows="40" cols="50"> </textarea>
+                </div>
+                <div class="txtarea">
+                    <label class="label">Output</label>
+                    <textarea id='txt_o' rows="40" cols="50"> </textarea>
+                </div>
             </div>
-            <hr>
-            <div class="txtarea">
-            <textarea id='txt_tb' rows="40" cols="50"> </textarea>
-            <textarea id='txt_q' rows="40" cols="50"> </textarea>
-            <textarea id='txt_o' rows="40" cols="50"> </textarea>
+            <div class="panel">
+                <input type='button' class="btn btn-block btn-primary" name="btn_find" value="FIND" />
             </div>
         </form>
     </div>
