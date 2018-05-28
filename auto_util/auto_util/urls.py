@@ -22,7 +22,6 @@ from tinq import views
 # ]
 
 urlpatterns = [
-    url('tinq/', include('tinq.urls')),
-    url('admin/', admin.site.urls),
-    url('', views.index, name='index')
+    url('tinq/', include('tinq.urls', namespace='tinq')),
+    url('admin/', admin.site.urls)
 ]

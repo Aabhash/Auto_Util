@@ -9,19 +9,19 @@
         .main {
             float: left;
             text-align: center;
-            width: 100%;        
-            background:#ccc;
-            }
+            width: 100%;
+            background: #ccc;
+        }
 
         .main .form .panel {
             background: inherit;
             width: 29%;
-            height:800px;
+            height: 800px;
             position: relative;
             float: left;
         }
 
-        .main .form .panel input{            
+        .main .form .panel input {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
@@ -59,23 +59,25 @@
 
 <body>
     <div class="main">
-        <form class="form">
+
+        <form action="{% url 'tinq:home' %}" method="post" class="form">
             <div class="txtpanel">
                 <div class="txtarea">
                     <label class="label">Tables</label>
-                    <textarea id='txt_tb' rows="40" cols="50"> </textarea>
+                    <textarea id='txt_tb' name='txt_tb' rows="40" cols="50"> </textarea>
                 </div>
                 <div class="txtarea">
                     <label class="label">Query</label>
-                    <textarea id='txt_q' rows="40" cols="50"> </textarea>
+                    <textarea id='txt_q' name='txt_q' rows="40" cols="50"> </textarea>
                 </div>
                 <div class="txtarea">
                     <label class="label">Output</label>
-                    <textarea id='txt_o' rows="40" cols="50"> </textarea>
+                    <textarea id='txt_o' name='txt_o' rows="40" cols="50"> </textarea>
                 </div>
             </div>
+            {% csrf_token %}
             <div class="panel">
-                <input type='button' class="btn btn-block btn-primary" name="btn_find" value="FIND" />
+                <input type='submit' class="btn btn-block btn-primary" name="btn_find" value="FIND" />
             </div>
         </form>
     </div>
