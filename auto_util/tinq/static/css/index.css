@@ -1,0 +1,48 @@
+.main {
+            float: left;
+            text-align: center;
+            width: 100%;
+            background: #ccc;
+        }
+
+        .main .form .panel {
+            background: inherit;
+            width: 29%;
+            height: 800px;
+            position: relative;
+            float: left;
+        }
+
+        .main .form .panel input {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .main .form .txtpanel {
+            float: left;
+            width: 70%;
+        }
+
+        .main .form .txtpanel .txtarea {
+            display: inline-block;
+            margin: 0 auto;
+            width: 33%;
+            padding: 15px;
+            background: #ccc;
+        }
+
+        .main .form .txtpanel .txtarea label {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 15px;
+            color: black;
+            display: block;
+            margin-right: auto;
+            margin-left: auto;
+            text-transform: uppercase;
+        }
+
+        .main .form .txtpanel .txtarea textarea {
+            float: left;
+            width: 100%;
+        }
