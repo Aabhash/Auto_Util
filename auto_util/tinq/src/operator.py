@@ -2,7 +2,7 @@ import re
 
 def read_tables(string_tables):
     string_tables = string_tables.upper()
-    l = (string_tables.split('\r\n'))
+    l = (string_tables.split())
     return l
 
 def convert_to_dictionary(table_list):

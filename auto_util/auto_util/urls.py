@@ -15,15 +15,11 @@ Including another URLconf
 """
 from django.conf.urls import url, include
 from django.contrib import admin
-from tinq import views
-from qtree import views
-
-# urlpatterns = [
-#     url(r'^admin/', admin.site.urls),
-# ]
+from main import views
 
 urlpatterns = [
+    url('admin/', admin.site.urls),
+    url('home/', views.home, name='main'),
     url('tinq/', include('tinq.urls', namespace='tinq')),
-    url('qtree/', include('qtree.urls', namespace='qtree')),
-    url('admin/', admin.site.urls)
+    #url('qtree/', include('qtree.urls', namespace='qtree'))
 ]

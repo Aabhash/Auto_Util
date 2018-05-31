@@ -3,6 +3,9 @@ from django.http import HttpResponse
 from django.db import models
 from tinq.src import operator
 
+def main(request):
+    return render(request, 'tinq/main.html')
+
 def index(request):
     return render(request, 'tinq/index.html')
 
