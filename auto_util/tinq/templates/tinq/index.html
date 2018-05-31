@@ -1,18 +1,23 @@
 {% load staticfiles %}
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>TINQ</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="{% static 'css/index.css' %}">
 </head>
+
 <body>
     <div class="main">
-        <form action="{% url 'tinq:home' %}" method="post" class="form">
+        <form action="{% url 'tinq:run' %}" method="post" class="form">
             <div class="txtpanel">
                 <div class="txtarea">
                     <label class="label">Tables</label>
-                    <textarea id='txt_tb' name='txt_tb' rows="40" cols="50"> </textarea>
+                    {% for s in schemas %}
+                    <input type="checkbox" name='schema_check' value="{{s.table_schema}}">{{s.table_schema}} 
+                    <br>
+                    {% endfor %}
                 </div>
                 <div class="txtarea">
                     <label class="label">Query</label>
@@ -21,7 +26,7 @@
                 <div class="txtarea">
                     <label class="label">Output</label>
                     {% csrf_token %}
-                    <textarea id='txt_o' name='txt_o' rows="40" cols="50">{% for table in output %}{{table}}
+                    <textarea id='txt_o' name='txt_o' rows="40" cols="50">{% for table in output %}{{table}} 
 {% endfor %}
                     </textarea>
                 </div>
