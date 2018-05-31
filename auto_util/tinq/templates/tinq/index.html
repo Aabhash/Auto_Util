@@ -7,15 +7,39 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" href="{% static 'css/index.css' %}">
 </head>
+<script>
+    function chk(){
+        c_boxes = document.getElementsByClassName('chk_box');
+        query_area = document.getElementById('txt_q').value;
+        chk_flg = false;
+        for (i = 0; i < c_boxes.length; i++)
+        {
+            if (c_boxes[i].checked == true){
+                chk_flg = true;
+            }
+        }
+        if(query_area != ' ' && chk_flg == true)
+        {
+            form = document.getElementById('form');
+            form.submit();
+        }
+        else{
+            printmsg();
+        }
+    }
 
+    function printmsg(){
+        
+    }
+</script>
 <body>
     <div class="main">
-        <form action="{% url 'tinq:run' %}" method="post" class="form">
+        <form action="{% url 'tinq:run' %}" method="post" id = 'form' class="form">
             <div class="txtpanel">
                 <div class="txtarea">
                     <label class="label">Tables</label>
                     {% for s in schemas %}
-                    <input type="checkbox" name='schema_check' value="{{s.table_schema}}">{{s.table_schema}} 
+                    <input type="checkbox" class='chk_box' name='schema_check' value="{{s.table_schema}}">{{s.table_schema}} 
                     <br>
                     {% endfor %}
                 </div>
@@ -33,7 +57,7 @@
             </div>
             {% csrf_token %}
             <div class="panel">
-                <input type='submit' class="btn btn-block btn-primary" name="btn_find" value="FIND" />
+                <input type='button' class="btn btn-block btn-primary" name="btn_find" value="FIND" onclick="chk()"/>
             </div>
         </form>
     </div>

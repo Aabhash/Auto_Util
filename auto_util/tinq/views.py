@@ -15,19 +15,18 @@ def index(request):
 def click(request):
     schemas = get_schemas()
 
-    # Gets checkbox values that have been checked
+    # Get values for boxes that have been checked
     check_boxes = request.POST.getlist('schema_check')
     
+    # For each schema checked, get tables from that schema
     tables = []
-    # For each schema checked, get tables from that schema 
     for c in check_boxes:
-        ts = (Schema_Info.objects.all().filter(table_schema=c))
-        for t in ts:
-            tables.append(t)
+        for t in (Schema_Info.objects.filter(table_schema=c)):
+            tables.append(str(t))
 
     txt_o = ['No Input']
     txt_query = request.POST.get('txt_q')
-    if  (tables and txt_query) is not None:
+    if  (tables != []) and (txt_query is not None):
         txt_o = operator.execute(tables, txt_query)
 
     context = {'schemas':schemas, 'output': txt_o}
